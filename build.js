@@ -3,12 +3,12 @@
 // build.js
 // Reads a story's YAML sidecar, counts words, builds the title-page docx,
 // runs pandoc for the body, merges both into the final submission docx.
-// Pure Node — no Python required.
 //
 // Usage:
-//   node build.js --story path/to/story.md [--out path/to/output.docx]
+//   node build.js --story path/to/story.md [--outdir /path/to/output/dir]
 //
-// Sidecar is resolved as: <story-basename>.yaml in the same directory.
+// Output filename is derived from the YAML sidecar as: Surname-Title.docx
+// Sidecar is resolved as: <story-basename>.yaml in the same directory as the story.
 //
 // Required YAML fields:
 //   title:    "The Long Dark"
@@ -27,14 +27,14 @@ const {
   PageNumber, HeadingLevel,
 } = require('docx');
 
-const fs              = require('fs');
-const path            = require('path');
-const yaml            = require('js-yaml');
-const AdmZip          = require('adm-zip');
-const { execSync }    = require('child_process');
+const fs                        = require('fs');
+const path                      = require('path');
+const yaml                      = require('js-yaml');
+const AdmZip                    = require('adm-zip');
+const { execSync }              = require('child_process');
 const { DOMParser, XMLSerializer } = require('@xmldom/xmldom');
 
-// ── Args ──────────────────────────────────────────────────────────────────────
+// Args
 
 const args = process.argv.slice(2);
 
@@ -45,18 +45,17 @@ function getArg(flag, fallback = null) {
 
 const storyPath = getArg('--story');
 if (!storyPath) {
-  console.error('Usage: node build.js --story <file.md> [--out <output.docx>]');
+  console.error('Usage: node build.js --story <file.md> [--outdir <dir>]');
   process.exit(1);
 }
 
-const storyDir   = path.dirname(storyPath);
-const storyBase  = path.basename(storyPath, path.extname(storyPath));
-const yamlPath   = path.join(storyDir, `${storyBase}.yaml`);
-const refDocPath = path.join(storyDir, 'reference.docx');
-const outPath    = getArg('--out', path.join(storyDir, `${storyBase}.docx`));
-const bodyTmp    = `${outPath}.body.tmp.docx`;
+const storyDir  = path.dirname(path.resolve(storyPath));
+const storyBase = path.basename(storyPath, path.extname(storyPath));
+const yamlPath  = path.join(storyDir, `${storyBase}.yaml`);
+const outDir    = path.resolve(getArg('--outdir', '.'));
+const refDocPath = path.join(outDir, 'reference.docx');
 
-// ── Load metadata ─────────────────────────────────────────────────────────────
+// Load metadata
 
 if (!fs.existsSync(yamlPath)) {
   console.error(`Metadata file not found: ${yamlPath}`);
@@ -72,18 +71,23 @@ for (const key of ['title', 'author', 'surname', 'email']) {
   }
 }
 
-// ── Word count ────────────────────────────────────────────────────────────────
+// Output filename: Surname-Title.docx (spaces in title become hyphens)
+const safeTitle = meta.title.replace(/\s+/g, '-');
+const outPath   = path.join(outDir, `${meta.surname}-${safeTitle}.docx`);
+const bodyTmp   = path.join(outDir, `${storyBase}.body.tmp.docx`);
+
+// Word count
 
 function countWords(filePath) {
   let text = fs.readFileSync(filePath, 'utf8');
   text = text
-    .replace(/^---[\s\S]*?^---\s*/m, '') // YAML front matter
-    .replace(/```[\s\S]*?```/g, '')       // fenced code blocks
-    .replace(/`[^`]*`/g, '')              // inline code
-    .replace(/!\[.*?\]\(.*?\)/g, '')      // images
-    .replace(/\[([^\]]*)\]\(.*?\)/g, '$1') // links — keep text
-    .replace(/[#*_~>\-]+/g, ' ')          // markdown markers
-    .replace(/<[^>]+>/g, '');             // html tags
+    .replace(/^---[\s\S]*?^---\s*/m, '')
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`[^`]*`/g, '')
+    .replace(/!\[.*?\]\(.*?\)/g, '')
+    .replace(/\[([^\]]*)\]\(.*?\)/g, '$1')
+    .replace(/[#*_~>\-]+/g, ' ')
+    .replace(/<[^>]+>/g, '');
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
@@ -91,12 +95,11 @@ const exactCount   = countWords(storyPath);
 const roundedCount = Math.round(exactCount / 100) * 100;
 const displayCount = roundedCount.toLocaleString();
 console.log(`Word count: ${exactCount} (displayed as ~${displayCount})`);
-
-// ── DXA ───────────────────────────────────────────────────────────────────────
+console.log(`Output: ${outPath}`);
 
 const INCH = 1440;
 
-// ── Build title-page docx ─────────────────────────────────────────────────────
+// Build title-page docx
 
 async function buildTitlePage() {
   const shortTitle = meta.title.toUpperCase();
@@ -116,7 +119,6 @@ async function buildTitlePage() {
 
   const contactLines = [meta.author, meta.address || null, meta.email].filter(Boolean);
 
-  // First contact line: name flush-left, word count flush-right
   const contactParagraphs = contactLines.map((line, i) =>
     i === 0
       ? new Paragraph({
@@ -130,7 +132,6 @@ async function buildTitlePage() {
       : new Paragraph({ style: 'TitleBlock', children: [new TextRun(line)] })
   );
 
-  // ~1/3 down the page
   const spacers = Array.from({ length: 8 }, () =>
     new Paragraph({ style: 'Normal', children: [new TextRun('')] })
   );
@@ -211,7 +212,7 @@ async function buildTitlePage() {
   return Packer.toBuffer(doc);
 }
 
-// ── Run pandoc ────────────────────────────────────────────────────────────────
+// Run pandoc
 
 function runPandoc() {
   if (!fs.existsSync(refDocPath)) {
@@ -224,9 +225,7 @@ function runPandoc() {
   execSync(cmd, { stdio: 'inherit' });
 }
 
-// ── Merge via ZIP/XML ─────────────────────────────────────────────────────────
-// A docx is a ZIP. We open both files, pull the <w:body> children from the
-// pandoc output, and append them before the </w:body> of the title-page doc.
+// Merge title page + pandoc body via ZIP/XML
 
 function mergeDocs(titleBuf) {
   const titleZip = new AdmZip(titleBuf);
@@ -235,22 +234,15 @@ function mergeDocs(titleBuf) {
   const parser     = new DOMParser();
   const serializer = new XMLSerializer();
 
-  const titleDocXml = titleZip.readAsText('word/document.xml');
-  const bodyDocXml  = bodyZip.readAsText('word/document.xml');
-
-  const titleDom = parser.parseFromString(titleDocXml, 'text/xml');
-  const bodyDom  = parser.parseFromString(bodyDocXml,  'text/xml');
+  const titleDom = parser.parseFromString(titleZip.readAsText('word/document.xml'), 'text/xml');
+  const bodyDom  = parser.parseFromString(bodyZip.readAsText('word/document.xml'),  'text/xml');
 
   const titleBody = titleDom.getElementsByTagNameNS('*', 'body')[0];
   const bodyBody  = bodyDom.getElementsByTagNameNS('*',  'body')[0];
 
-  // The last child of <w:body> is <w:sectPr> (section properties).
-  // Insert body children before it so the title page's sectPr governs the doc.
   const titleSectPr = titleBody.lastChild;
-  const bodyChildren = Array.from(bodyBody.childNodes);
 
-  for (const node of bodyChildren) {
-    // Skip the body's own sectPr — we keep the title page's
+  for (const node of Array.from(bodyBody.childNodes)) {
     const localName = node.localName || node.nodeName.replace(/^.*:/, '');
     if (localName === 'sectPr') continue;
     titleBody.insertBefore(titleDom.importNode(node, true), titleSectPr);
@@ -263,7 +255,7 @@ function mergeDocs(titleBuf) {
   console.log(`Done: ${outPath}`);
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// Main
 
 (async () => {
   runPandoc();
