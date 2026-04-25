@@ -6,7 +6,6 @@ package.json
 
 # Generated submission docx files — source is the .md and .yaml
 *.docx
-!reference.docx
 
 # Pandoc/build temporaries
 *.tmp.docx
