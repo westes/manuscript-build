@@ -25,7 +25,7 @@ setup:
 reference: $(REF_DOCX)
 
 $(REF_DOCX): make-reference.js
-	node make-reference.js --out $(REF_DOCX)
+	$(NODE) make-reference.js --out $(REF_DOCX)
 
 
 .PHONY: all reference clean distclean setup
