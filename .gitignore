@@ -2,8 +2,6 @@
 node_modules/
 package-lock.json
 
-package.json
-
 # Generated submission docx files — source is the .md and .yaml
 *.docx
 
