@@ -1,33 +1,31 @@
-STORY     ?= story.md
-OUT       := $(patsubst %.md,%.docx,$(STORY))
-REF_DOCX  := $(dir $(STORY))reference.docx
+STORY    ?= story.md
+STORYBASE = $(basename $(notdir $(STORY)))
+YAMLFILE  = $(dir $(STORY))$(STORYBASE).yaml
+REF_DOCX  = reference.docx
+NODE ?= node
 
-.PHONY: all reference clean distclean setup
+all: $(YAMLFILE) $(STORY) $(REF_DOCX)
+	$(NODE) build.js --story $(STORY) --outdir .
 
-# ── One-time setup ────────────────────────────────────────────────────────────
-# Run once after cloning: make setup
-# Requires node and pandoc to already be installed.
-# If you add packages later: npm install <package> (updates package.json too)
+# Submission docx files are Surname-Title.docx — archive them separately,
+# don't rely on make clean to manage them.
+clean:
+	rm -f *.tmp.docx
+
+distclean: clean
+	rm -f $(REF_DOCX)
+
+# Run once after cloning. Requires node and pandoc to already be installed.
+# To add packages later: npm install <package>  (updates package.json too)
 
 setup:
 	npm init -y
 	npm install docx js-yaml adm-zip @xmldom/xmldom
 
-# ── Reference doc ─────────────────────────────────────────────────────────────
-# Rebuilt only when make-reference.js changes.
+reference: $(REF_DOCX)
 
 $(REF_DOCX): make-reference.js
-	node make-reference.js --out $@
+	node make-reference.js --out $(REF_DOCX)
 
-reference: $(REF_DOCX)
-# ──
-$(OUT): $(STORY) $(patsubst %.md,%.yaml,$(STORY)) $(REF_DOCX)
-	node build.js --story $(STORY) --out $(OUT)
 
-all: $(OUT)
-
-clean:
-	rm -f $(OUT)
-
-distclean: clean
-	rm -f $(REF_DOCX)
+.PHONY: all reference clean distclean setup
