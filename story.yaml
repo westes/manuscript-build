@@ -1,0 +1,11 @@
+# story.yaml — metadata sidecar for story.md
+# Rename alongside each story: my-story.yaml for my-story.md
+
+# Required
+title:    "The Long Dark"
+author:   "Jane Smith"
+surname:  "Smith"             # running header: Smith / THE LONG DARK
+email:    "jane@example.com"
+
+# Optional
+# address:  "123 Main St, City, ST 00000"

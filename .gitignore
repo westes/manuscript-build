@@ -1,0 +1,9 @@
+# Node
+node_modules/
+package-lock.json
+
+# Generated build artifacts — source is the .md and .yaml
+*.docx
+
+# Pandoc/build temporaries
+*.tmp.docx
