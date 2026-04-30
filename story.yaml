@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Will Estes <westes575@gmail.com>
+#
+# SPDX-License-Identifier: MIT
+
 # story.yaml — metadata sidecar for story.md
 # Rename alongside each story: my-story.yaml for my-story.md
 
