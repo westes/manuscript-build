@@ -2,13 +2,18 @@ STORY    ?= story.md
 STORYBASE = $(basename $(notdir $(STORY)))
 YAMLFILE  = $(dir $(STORY))$(STORYBASE).yaml
 REF_DOCX  = reference.docx
-NODE ?= node
+NODE     ?= node
+
+# Lua filters passed to pandoc. Default converts horizontal rules to scene breaks.
+# Override on the command line:
+#   make STORY=my-story.md                               -- default filter
+#   make STORY=my-story.md FILTERS="--lua-filter other.lua"  -- different filter
+#   make STORY=my-story.md FILTERS=                      -- no filters at all
+FILTERS ?= --lua-filter hrule-to-scene-break.lua
 
 all: $(YAMLFILE) $(STORY) $(REF_DOCX)
-	$(NODE) build.js --story $(STORY) --outdir .
+	$(NODE) build.js --story $(STORY) --outdir . --extra-args "$(FILTERS)"
 
-# Submission docx files are Surname-Title.docx — archive them separately,
-# don't rely on make clean to manage them.
 clean:
 	rm -f *.tmp.docx
 
@@ -26,6 +31,5 @@ reference: $(REF_DOCX)
 
 $(REF_DOCX): make-reference.js
 	$(NODE) make-reference.js --out $(REF_DOCX)
-
 
 .PHONY: all reference clean distclean setup

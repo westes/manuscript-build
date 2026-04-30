@@ -45,9 +45,11 @@ function getArg(flag, fallback = null) {
 
 const storyPath = getArg('--story');
 if (!storyPath) {
-  console.error('Usage: node build.js --story <file.md> [--outdir <dir>]');
+  console.error(`Usage: node build.js --story <file.md> [--outdir <dir>] [--extra-args '<pandoc flags>']`);
   process.exit(1);
 }
+
+const extraArgs = getArg('--extra-args', '');
 
 const storyDir  = path.dirname(path.resolve(storyPath));
 const storyBase = path.basename(storyPath, path.extname(storyPath));
@@ -220,7 +222,8 @@ function runPandoc() {
     console.error('Run: make reference');
     process.exit(1);
   }
-  const cmd = `pandoc ${storyPath} --from markdown --to docx --reference-doc=${refDocPath} -o ${bodyTmp}`;
+
+  const cmd = `pandoc ${storyPath} --from markdown --to docx --reference-doc=${refDocPath} ${extraArgs} -o ${bodyTmp}`;
   console.log(`Running: ${cmd}`);
   execSync(cmd, { stdio: 'inherit' });
 }
