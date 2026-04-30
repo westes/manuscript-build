@@ -1,3 +1,7 @@
+-- SPDX-FileCopyrightText: 2026 Will Estes <westes575@gmail.com>
+--
+-- SPDX-License-Identifier: MIT
+
 -- hrule-to-scene-break.lua
 -- Converts markdown horizontal rules (---, ***, ___) to a centered # paragraph
 -- styled as "Scene Break" in the output docx.

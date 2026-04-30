@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Will Estes <westes575@gmail.com>
+#
+# SPDX-License-Identifier: MIT
+
 STORY    ?= story.md
 STORYBASE = $(basename $(notdir $(STORY)))
 YAMLFILE  = $(dir $(STORY))$(STORYBASE).yaml

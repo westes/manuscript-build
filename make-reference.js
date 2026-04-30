@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+
+// SPDX-FileCopyrightText: 2026 Will Estes <westes575@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //
 // make-reference.js
 // Generates reference.docx for pandoc --reference-doc

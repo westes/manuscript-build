@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2026 Will Estes <westes575@gmail.com>
+
+SPDX-License-Identifier: MIT
+-->
+
 # manuscript-build
 
 Converts a Markdown story file into a submission-ready Word document following

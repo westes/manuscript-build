@@ -1,4 +1,9 @@
 #!/usr/bin/env node
+
+// SPDX-FileCopyrightText: 2026 Will Estes <westes575@gmail.com>
+//
+// SPDX-License-Identifier: MIT
+
 //
 // build.js
 // Reads a story's YAML sidecar, counts words, builds the title-page docx,

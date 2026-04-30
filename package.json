@@ -7,7 +7,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@xmldom/xmldom": "^0.9.10",
     "adm-zip": "^0.5.17",
