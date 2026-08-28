@@ -35,6 +35,7 @@ commit the generated `package.json` to the repository afterward.
 | `make-reference.js` | Generates `reference.docx` — the style template pandoc uses |
 | `hrule-to-scene-break.lua` | Pandoc Lua filter: converts `---` horizontal rules to centered `#` scene break markers |
 | `story.yaml` | Example metadata sidecar — copy and rename alongside each story file |
+| `bio.yaml.example` | Example author bio file — copy once, keep it anywhere, reference from `bio_file` |
 
 ## Story metadata
 
@@ -58,11 +59,40 @@ email:    "jane@example.com"
 Optional fields:
 
 ```yaml
-address:  "123 Main St, City, ST 00000"
+address:   "123 Main St, City, ST 00000"
+bio_file:  "../author-bio.yaml"
 ```
 
 `surname` is used in the running header (`Smith / THE LONG DARK`) and in the
 output filename. Use your submission name here — pseudonym if applicable.
+
+`bio_file` is described in "Author bio" below. If it's omitted, the build
+behaves exactly as if the field didn't exist — no bio page is added.
+
+## Author bio
+
+An author bio is stable across nearly all of your stories, so instead of
+repeating it in every sidecar, it lives in its own small YAML file, kept
+wherever you like (outside this repo is fine — it's personal data, not part of
+the toolchain). Copy `bio.yaml.example` to get started:
+
+```yaml
+bio: |
+  Jane Smith's fiction has appeared in Asimov's and Clarkesworld. She lives in
+  Portland and is currently at work on a novel.
+```
+
+Point a story's sidecar at it with `bio_file`, resolved relative to the
+sidecar's own directory:
+
+```yaml
+bio_file: "../author-bio.yaml"
+```
+
+When set, the build appends an `END` marker and the bio text as a final page
+after the manuscript body, matching how short-fiction markets that don't
+collect a bio via a separate form expect to receive it. When `bio_file` is
+omitted, no such page is added.
 
 ## Building
 
@@ -103,6 +133,8 @@ The generated docx follows standard manuscript format:
 - Title page: contact block with word count flush-right, title and byline centered
 - Running header: `Surname / TITLE` with page number flush-right
 - Word count rounded to nearest 100
+- If `bio_file` is set in the sidecar: a final page with a centered `END`
+  marker followed by the bio text
 
 ## Submission files
 

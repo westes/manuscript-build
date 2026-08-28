@@ -22,7 +22,11 @@
 //   email:    "jane@example.com"
 //
 // Optional YAML fields:
-//   address:  "123 Main St, City, ST 00000"
+//   address:   "123 Main St, City, ST 00000"
+//   bio_file:  "../author-bio.yaml"   (path resolved relative to the sidecar)
+//
+// bio_file, if set, must point to a YAML file with a `bio:` string field.
+// When present, an END marker and bio page are appended after the manuscript body.
 
 'use strict';
 
@@ -78,6 +82,28 @@ for (const key of ['title', 'author', 'surname', 'email']) {
   }
 }
 
+// Load bio (optional)
+
+let bioText = null;
+
+if (meta.bio_file) {
+  const bioPath = path.resolve(storyDir, meta.bio_file);
+
+  if (!fs.existsSync(bioPath)) {
+    console.error(`Bio file not found: ${bioPath}`);
+    process.exit(1);
+  }
+
+  const bioMeta = yaml.load(fs.readFileSync(bioPath, 'utf8'));
+
+  if (!bioMeta || !bioMeta.bio) {
+    console.error(`Missing required field 'bio' in: ${bioPath}`);
+    process.exit(1);
+  }
+
+  bioText = bioMeta.bio;
+}
+
 // Output filename: Surname-Title.docx (spaces in title become hyphens)
 const safeTitle = meta.title.replace(/\s+/g, '-');
 const outPath   = path.join(outDir, `${meta.surname}-${safeTitle}.docx`);
@@ -106,44 +132,10 @@ console.log(`Output: ${outPath}`);
 
 const INCH = 1440;
 
-// Build title-page docx
+// Shared paragraph styles for both the title page and end page
 
-async function buildTitlePage() {
-  const shortTitle = meta.title.toUpperCase();
-
-  const runningHeader = new Header({
-    children: [
-      new Paragraph({
-        style: 'Header',
-        tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-        children: [
-          new TextRun(`${meta.surname} / ${shortTitle}`),
-          new TextRun({ children: ['\t', PageNumber.CURRENT] }),
-        ],
-      }),
-    ],
-  });
-
-  const contactLines = [meta.author, meta.address || null, meta.email].filter(Boolean);
-
-  const contactParagraphs = contactLines.map((line, i) =>
-    i === 0
-      ? new Paragraph({
-          style: 'TitleBlock',
-          tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-          children: [
-            new TextRun(line),
-            new TextRun(`\t~${displayCount} words`),
-          ],
-        })
-      : new Paragraph({ style: 'TitleBlock', children: [new TextRun(line)] })
-  );
-
-  const spacers = Array.from({ length: 8 }, () =>
-    new Paragraph({ style: 'Normal', children: [new TextRun('')] })
-  );
-
-  const styles = {
+function manuscriptStyles() {
+  return {
     default: {
       document: { run: { font: 'Courier New', size: 24 } },
     },
@@ -187,9 +179,47 @@ async function buildTitlePage() {
       },
     ],
   };
+}
+
+// Build title-page docx
+
+async function buildTitlePage() {
+  const shortTitle = meta.title.toUpperCase();
+
+  const runningHeader = new Header({
+    children: [
+      new Paragraph({
+        style: 'Header',
+        tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+        children: [
+          new TextRun(`${meta.surname} / ${shortTitle}`),
+          new TextRun({ children: ['\t', PageNumber.CURRENT] }),
+        ],
+      }),
+    ],
+  });
+
+  const contactLines = [meta.author, meta.address || null, meta.email].filter(Boolean);
+
+  const contactParagraphs = contactLines.map((line, i) =>
+    i === 0
+      ? new Paragraph({
+          style: 'TitleBlock',
+          tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+          children: [
+            new TextRun(line),
+            new TextRun(`\t~${displayCount} words`),
+          ],
+        })
+      : new Paragraph({ style: 'TitleBlock', children: [new TextRun(line)] })
+  );
+
+  const spacers = Array.from({ length: 8 }, () =>
+    new Paragraph({ style: 'Normal', children: [new TextRun('')] })
+  );
 
   const doc = new Document({
-    styles,
+    styles: manuscriptStyles(),
     sections: [{
       properties: {
         page: {
@@ -219,6 +249,44 @@ async function buildTitlePage() {
   return Packer.toBuffer(doc);
 }
 
+// Build end-page docx (END marker + author bio), only when a bio was loaded
+
+async function buildEndPage() {
+  const endParagraph = new Paragraph({
+    style: 'Normal',
+    alignment: AlignmentType.CENTER,
+    indent: { firstLine: 0 },
+    pageBreakBefore: true,
+    spacing: { before: 0, after: 480, line: 480, lineRule: 'auto' },
+    children: [new TextRun('END')],
+  });
+
+  const spacers = Array.from({ length: 4 }, () =>
+    new Paragraph({ style: 'Normal', children: [new TextRun('')] })
+  );
+
+  const bioParagraphs = bioText
+    .split(/\n\s*\n/)
+    .map(p => p.trim())
+    .filter(Boolean)
+    .map(p => new Paragraph({ style: 'Normal', children: [new TextRun(p)] }));
+
+  const doc = new Document({
+    styles: manuscriptStyles(),
+    sections: [{
+      properties: {
+        page: {
+          size:   { width: 12240, height: 15840 },
+          margin: { top: INCH, right: INCH, bottom: INCH, left: INCH },
+        },
+      },
+      children: [endParagraph, ...spacers, ...bioParagraphs],
+    }],
+  });
+
+  return Packer.toBuffer(doc);
+}
+
 // Run pandoc
 
 function runPandoc() {
@@ -235,7 +303,7 @@ function runPandoc() {
 
 // Merge title page + pandoc body via ZIP/XML
 
-function mergeDocs(titleBuf) {
+function mergeDocs(titleBuf, endBuf) {
   const titleZip = new AdmZip(titleBuf);
   const bodyZip  = new AdmZip(bodyTmp);
 
@@ -250,10 +318,21 @@ function mergeDocs(titleBuf) {
 
   const titleSectPr = titleBody.lastChild;
 
-  for (const node of Array.from(bodyBody.childNodes)) {
-    const localName = node.localName || node.nodeName.replace(/^.*:/, '');
-    if (localName === 'sectPr') continue;
-    titleBody.insertBefore(titleDom.importNode(node, true), titleSectPr);
+  function spliceIn(sourceBody, sourceDom) {
+    for (const node of Array.from(sourceBody.childNodes)) {
+      const localName = node.localName || node.nodeName.replace(/^.*:/, '');
+      if (localName === 'sectPr') continue;
+      titleBody.insertBefore(titleDom.importNode(node, true), titleSectPr);
+    }
+  }
+
+  spliceIn(bodyBody, bodyDom);
+
+  if (endBuf) {
+    const endZip = new AdmZip(endBuf);
+    const endDom = parser.parseFromString(endZip.readAsText('word/document.xml'), 'text/xml');
+    const endBody = endDom.getElementsByTagNameNS('*', 'body')[0];
+    spliceIn(endBody, endDom);
   }
 
   titleZip.updateFile('word/document.xml', Buffer.from(serializer.serializeToString(titleDom)));
@@ -268,5 +347,6 @@ function mergeDocs(titleBuf) {
 (async () => {
   runPandoc();
   const titleBuf = await buildTitlePage();
-  mergeDocs(titleBuf);
+  const endBuf   = bioText ? await buildEndPage() : null;
+  mergeDocs(titleBuf, endBuf);
 })();

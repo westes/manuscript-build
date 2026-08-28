@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Will Estes <westes575@gmail.com>
+#
+# SPDX-License-Identifier: MIT
+
+# bio.yaml.example — template for a reusable author bio file
+#
+# Unlike story.yaml, this isn't a sidecar for one story — it's meant to be
+# copied once, kept wherever you like (outside this repo is fine), and
+# referenced from any story's sidecar via `bio_file:`. When referenced, its
+# contents are appended as an END marker + bio page after the manuscript body.
+
+bio: |
+  Jane Smith's fiction has appeared in Asimov's and Clarkesworld. She lives in
+  Portland and is currently at work on a novel.

@@ -12,4 +12,5 @@ surname:  "Smith"             # running header: Smith / THE LONG DARK
 email:    "jane@example.com"
 
 # Optional
-# address:  "123 Main St, City, ST 00000"
+# address:   "123 Main St, City, ST 00000"
+# bio_file:  "../author-bio.yaml"   # path resolved relative to this sidecar
