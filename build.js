@@ -114,7 +114,7 @@ const bodyTmp   = path.join(outDir, `${storyBase}.body.tmp.docx`);
 function countWords(filePath) {
   let text = fs.readFileSync(filePath, 'utf8');
   text = text
-    .replace(/^---[\s\S]*?^---\s*/m, '')
+    .replace(/^---\r?\n[\s\S]*?\r?\n---\s*/, '')
     .replace(/```[\s\S]*?```/g, '')
     .replace(/`[^`]*`/g, '')
     .replace(/!\[.*?\]\(.*?\)/g, '')
