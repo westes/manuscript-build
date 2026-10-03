@@ -153,6 +153,14 @@ function manuscriptStyles() {
         paragraph: { indent: { firstLine: 0 } },
       },
       {
+        id: 'SceneBreak', name: 'Scene Break', basedOn: 'Normal',
+        paragraph: {
+          alignment: AlignmentType.CENTER,
+          indent: { firstLine: 0 },
+          spacing: { before: 240, after: 240, line: 480, lineRule: 'auto' },
+        },
+      },
+      {
         id: 'TitleBlock', name: 'Title Block', basedOn: 'Normal',
         paragraph: {
           indent: { firstLine: 0 },
